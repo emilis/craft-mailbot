@@ -1,0 +1,10 @@
+*.swp
+npm-debug.log
+node_modules/
+backup/
+bin/
+json/
+messages.json
+players.json
+config/emilis-laptop.js
+config/runtime.json

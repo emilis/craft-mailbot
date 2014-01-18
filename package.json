@@ -1,0 +1,13 @@
+{
+    "name":         "craft-mailbot",
+    "description":  "Private and public message bot for Craft.",
+    "version":      "0.0.1",
+    "author":       {
+        "name":     "Emilis Dambauskas",
+        "email":    "emilis.d@gmail.com"
+    },
+    "dependencies": {
+        "craft-client": "0.x",
+        "config":       "0.4.x"
+    }
+}
