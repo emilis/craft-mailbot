@@ -19,6 +19,8 @@ var MSGDELAY =  3000;
 var messages =  loadData( MESSAGES );
 var players =   loadData( PLAYERS );
 
+var pids =      {};
+
 /// User connection instance:
 var uc =        UC.open( config.HOST, config.PORT, config.NAME, config.IDENT );
 
@@ -29,6 +31,7 @@ uc.on( PRIVMSG, log );
 
 uc.on( PRIVMSG, parseMessage );
 uc.on( "N", onPlayerJoin );
+uc.on( "D", onPlayerLeave );
 uc.on( "connect", onConnect );
 
 /// REPL: ----------------------------------------------------------------------
@@ -73,6 +76,7 @@ function parseMessage( toBot, fromPlayer, message ){
     var UNKNOWN =   "I am sorry, I didn't understand that."; /// Don't change this!
     var privMsg =   /^@([^ @]+)\s+(.*)$/;
     var pubMsg =    /^@@\s+(.*)$/;
+    var seenCmd =   /^seen (\S+)/;
     var matches;
 
     if ( message === UNKNOWN ){
@@ -87,7 +91,9 @@ function parseMessage( toBot, fromPlayer, message ){
         onListAllPublic( fromPlayer );
     } else if ( message === "help" ){
         onHelp( fromPlayer );
-    } else if ( matches = message.match (privMsg )){
+    } else if ( matches = message.match( seenCmd )){
+        onSeen( fromPlayer, matches[1] );
+    } else if ( matches = message.match( privMsg )){
         onNewMessage( fromPlayer, matches[1], message );
     } else if ( matches = message.match( pubMsg )){
         onPubMessage( fromPlayer, message );
@@ -168,21 +174,8 @@ function onListAllPublic( name ){
 
 function showMessage( toPlayer, message, n ){
     
-    var diff =  +new Date - message.time;
-    var ago =   "";
-
-    if ( diff >  48*3600*1000 ){
-        ago =   new Date( message.time ).toJSON().slice( 5, 16 );
-    } else if ( diff > 7200 * 1000 ){
-        ago =   Math.floor( diff / 3600000 ) + " h ago";
-    } else if ( diff > 60000 ){
-        ago =   Math.floor( diff / 60000 ) + " min. ago";
-    } else {
-        ago =   Math.floor( diff / 1000 ) + " s ago";
-    }
-
     setTimeout(function(){
-        msg( toPlayer, n, ago, message.from, ":", message.msg );
+        msg( toPlayer, n, agoStr( message.time ), message.from, ":", message.msg );
     }, n * MSGDELAY );
 }///
 
@@ -202,7 +195,27 @@ function onPubMessage( from, msg ){
     onNewMessage( from, "@", msg );
 }///
 
+function onSeen( from, name ){
+
+    for ( var pid in pids ){
+        if ( pids[pid] === name ){
+            msg( from, "Player", name, "is online now." );
+            return;
+        }
+    }
+    var player =    players[name] || false;
+    if ( !player ){
+        msg( from, "I don't know who", name, "is." );
+    } else if ( !player.lastLeave ){
+        msg( from, "I haven't seen", name, "for a long time..." );
+    } else {
+        msg( from, "I have last seen", name, agoStr( player.lastLeave ));
+    }
+}///
+
 function onPlayerJoin( pid, name ){
+
+    pids[pid] =             name;
 
     if ( isUser( name ) && isUser( uc.info.name ) && pid !== uc.info.pid ){
 
@@ -229,6 +242,17 @@ function onPlayerJoin( pid, name ){
         setTimeout(function(){
             msg( name, "You have", messages.length - lastRead, "unread messages and", pmessages.length - lastPublic, "unread public messages." );
         }, delay );
+    }
+}///
+
+function onPlayerLeave( pid ){
+
+    if ( pids[pid] ){
+
+        var player =        getPlayer( pids[pid] );
+        player.lastLeave =  +new Date;
+        saveData();
+        pids[pid] =         false;
     }
 }///
 
@@ -271,5 +295,22 @@ function loadData( fileName ){
     } catch (e){
         console.error( fileName, e );
         return {};
+    }
+}///
+
+/// Utilities ------------------------------------------------------------------
+
+function agoStr( time ){
+
+    var diff =  +new Date - time;
+
+    if ( diff >  48*3600*1000 ){
+        return "at " + (new Date( time )).toJSON().slice( 5, 16 );
+    } else if ( diff > 7200 * 1000 ){
+        return Math.floor( diff / 3600000 ) + " h ago";
+    } else if ( diff > 60000 ){
+        return Math.floor( diff / 60000 ) + " min. ago";
+    } else {
+        return Math.floor( diff / 1000 ) + " s ago";
     }
 }///
