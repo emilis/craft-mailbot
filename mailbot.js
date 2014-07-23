@@ -261,6 +261,7 @@ function onHelp( name ){
     msg( name, "Send private messages to use my commands:" );
     msg( name, " ls (list unread), la (list all private), lp (list all public)" );
     msg( name, " @user msgtext (send to user), @@ msgtext (send to all)" );
+    msg( name, " seen user (check when the user was online)" );
 }///
 
 function onConnect(){
