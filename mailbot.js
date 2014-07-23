@@ -206,10 +206,15 @@ function onSeen( from, name ){
     var player =    players[name] || false;
     if ( !player ){
         msg( from, "I don't know who", name, "is." );
-    } else if ( !player.lastLeave ){
-        msg( from, "I haven't seen", name, "for a long time..." );
     } else {
-        msg( from, "I have last seen", name, agoStr( player.lastLeave ));
+        player =    getPlayer( name );
+        player.wanted.push({ name: from, time: +new Date });
+        saveData();
+        if ( !player.lastLeave ){
+            msg( from, "I haven't seen", name, "for a long time..." );
+        } else {
+            msg( from, "I have last seen", name, agoStr( player.lastLeave ));
+        }
     }
 }///
 
@@ -230,18 +235,37 @@ function onPlayerJoin( pid, name ){
 
         if ( !hadIntro ){
             delay +=        MSGDELAY * 3;
-            setTimeout(function(){
-                msg( name, "Hi! I can get your messages to players when they come online" );
-                msg( name, "To start using me type \"@mailbot help\"" );
-                player.hadIntro =   true;
-                saveData();
-            }, delay );
+            setTimeout( showIntro, delay );
         }
 
         delay +=            MSGDELAY * 2;
-        setTimeout(function(){
-            msg( name, "You have", messages.length - lastRead, "unread messages and", pmessages.length - lastPublic, "unread public messages." );
-        }, delay );
+        setTimeout( showInbox, delay );
+    }
+
+    /// Functions ---
+
+    function showIntro(){
+
+        msg( name, "Hi! I can get your messages to players when they come online" );
+        msg( name, "To start using me type \"@mailbot help\"" );
+        player.hadIntro =   true;
+        saveData();
+    }///
+
+    function showInbox(){
+
+        msg( name, "You have", messages.length - lastRead, "unread messages and", pmessages.length - lastPublic, "unread public messages." );
+        if ( player.wanted.length ){
+            var wantedNames =   getWantedNames( player.wanted );
+            if ( wantedNames.length > 1 ){
+                var was =       "were";
+            } else {
+                var was =       "was";
+            }
+            msg( name, wantedNames.join( ", " ), was, "looking for you", player.wanted.length, "times while you were away." );
+            player.wanted = [];
+            saveData();
+        }
     }
 }///
 
@@ -273,12 +297,24 @@ function onConnect(){
 
 function getMessages( to ){
 
-    return messages[to] =  messages[to] || [];
+    return messages[to] =   messages[to] || [];
 }///
 
 function getPlayer( name ){
 
-    return players[name] =  players[name] || {};
+    players[name] =         players[name] || {};
+    players[name].wanted =  players[name].wanted || [];
+
+    return players[name];
+}///
+
+function getWantedNames( wanted ){
+
+    var names =             {};
+    for ( var i=0,len=wanted.length; i<len; i++ ){
+        names[wanted[i].name] = true;
+    }
+    return Object.keys( names );
 }///
 
 /// Persistence: ---------------------------------------------------------------
